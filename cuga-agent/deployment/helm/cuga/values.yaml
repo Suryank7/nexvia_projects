@@ -1,0 +1,78 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/cuga-project/cuga
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets: []
+
+service:
+  type: ClusterIP
+  port: 7860
+
+route:
+  enabled: true
+  hostname: ""
+  # TLS is edge-terminated at the OpenShift router
+  # insecureEdgeTerminationPolicy: Redirect (HTTP -> HTTPS)
+
+env:
+  UV_CACHE_DIR: "/tmp/uv-cache"
+  GROQ_API_KEY: ""
+  MODEL_NAME: "openai/gpt-oss-120b"
+  AGENT_SETTING_CONFIG: "settings.groq.toml"
+  DYNACONF_SERVICE__INSTANCE_ID: ""
+  DYNACONF_SERVICE__TENANT_ID: ""
+  # When auth is enabled, role checks are always enforced (there is no separate
+  # authorization switch). The identity provider MUST send a role claim mapping each
+  # user to ServiceOwner or ServiceAdmin (see auth.manage_roles); without that mapping
+  # every logged-in user loses access to admin-only routes (secrets, agent management).
+  # Confirm role-claim mapping is in place before enabling auth on a live install.
+  DYNACONF_AUTH__ENABLED: "true"
+  DYNACONF_AUTH__REQUIRE_HTTPS: "true"
+  DYNACONF_AUTH__ROLE_TOKEN_SOURCE: "auto"
+  DYNACONF_UI__HIDE_CUGA_LOGO: "false"
+  DYNACONF_UI__BRAND_NAME: ""
+  CUGA_DEMO_MODE: "default"
+  OIDC_CLIENT_ID: ""
+  OIDC_CLIENT_SECRET: ""
+  OIDC_DISCOVERY_URL: ""
+  OIDC_REDIRECT_URI: ""
+  DYNACONF_AUTH__OIDC_SKIP_VERIFY: "false"
+  DYNACONF_AUTH__OIDC_CA_BUNDLE: ""
+  DYNACONF_AUTH__IAM_PROXY_URL: ""
+  DYNACONF_AUTH__IAM_PROXY_SKIP_VERIFY: "false"
+  DYNACONF_STORAGE__MODE: "local"
+  DYNACONF_STORAGE__POSTGRES_URL: ""
+  DYNACONF_SECRETS__FORCE_ENV: "false"
+  DYNACONF_SECRETS__VAULT_SKIP_VERIFY: "false"
+  DYNACONF_OBSERVABILITY__OPENLIT: "false"
+  # Airgapped: bundled OpenLit pricing when empty; LiteLLM uses local cost map.
+  # DYNACONF_OBSERVABILITY__PRICING_JSON: ""
+  DYNACONF_OBSERVABILITY__LITELLM_LOCAL_MODEL_COST_MAP: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: ""
+  # Sandbox tool-callback address. Leave unset: the chart derives it per release as
+  # http://<fullname>.<namespace>.svc.cluster.local:<service.port>, the host the sandbox egress
+  # policy allows. Set only to override.
+  # The default is plain HTTP: block tokens, arguments and results are unencrypted and a token
+  # stays valid while its block runs. Use it only on a trusted in-cluster network; elsewhere set
+  # an HTTPS address here (e.g. through a TLS proxy that still reaches this pod).
+  # DYNACONF_ADVANCED_FEATURES__SANDBOX_CALLBACK_URL: ""
+
+# Name of an existing Secret containing sensitive env vars.
+# When set, sensitive keys are sourced via secretKeyRef instead of plain value.
+existingSecret: ""
+
+resources:
+  requests:
+    memory: 2Gi
+    cpu: 200m
+  limits:
+    memory: 4Gi
+    cpu: "2"
+
+persistence:
+  dbs:
+    enabled: true
+    size: 1Gi

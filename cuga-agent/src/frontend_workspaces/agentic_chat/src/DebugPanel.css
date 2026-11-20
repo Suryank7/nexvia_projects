@@ -1,0 +1,225 @@
+.debug-panel-container {
+  position: fixed;
+  bottom: 20px;
+  right: 100px;
+  z-index: 1000;
+  font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+}
+
+.debug-panel-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, var(--cds-interactive) 0%, var(--cds-interactive) 100%);
+  color: white;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  transition: all 0.2s ease;
+}
+
+.debug-panel-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.debug-panel-content {
+  position: absolute;
+  bottom: 50px;
+  right: 0;
+  width: 500px;
+  max-height: 600px;
+  background: white;
+  border-radius: 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.debug-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--cds-interactive) 0%, var(--cds-interactive) 100%);
+  color: white;
+}
+
+.debug-panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.debug-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.debug-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 0;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.debug-action-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.debug-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.debug-action-btn .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.debug-auto-refresh {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.debug-auto-refresh input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.debug-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+}
+
+.debug-section:last-child {
+  border-bottom: none;
+}
+
+.debug-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.debug-section-header strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cds-text-primary);
+}
+
+.debug-copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--cds-layer-02);
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--cds-text-secondary);
+}
+
+.debug-copy-btn:hover {
+  background: var(--cds-border-subtle-01);
+  color: var(--cds-text-primary);
+}
+
+.debug-thread-id {
+  font-family: "Monaco", "Menlo", "Courier New", monospace;
+  font-size: 12px;
+  padding: 10px;
+  background: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle-01);
+  border-radius: 0;
+  word-break: break-all;
+  color: var(--cds-text-primary);
+}
+
+.debug-state-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.debug-state-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.debug-state-item.debug-variables {
+  margin-top: 8px;
+}
+
+.debug-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cds-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.debug-value {
+  font-size: 14px;
+  color: var(--cds-text-primary);
+  word-break: break-word;
+}
+
+.debug-json {
+  font-family: "Monaco", "Menlo", "Courier New", monospace;
+  font-size: 12px;
+  padding: 12px;
+  background: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle-01);
+  border-radius: 0;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  color: var(--cds-text-primary);
+  line-height: 1.5;
+}
+
+.debug-loading {
+  padding: 12px;
+  text-align: center;
+  color: var(--cds-text-secondary);
+  font-size: 14px;
+}
+
+.debug-error {
+  padding: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0;
+  color: var(--cds-text-error);
+  font-size: 14px;
+}
+

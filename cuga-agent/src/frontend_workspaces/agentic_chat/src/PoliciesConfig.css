@@ -1,0 +1,26 @@
+/* Green styling for generated tool guard button */
+.guard-generated svg {
+  fill: var(--cds-support-success) !important;
+}
+
+/* Red styling for disabled tool guard button */
+.guard-disabled svg {
+  fill: var(--cds-support-error) !important;
+}
+
+/* Policy code block */
+.policy-code-block {
+  margin: 0;
+  padding: 1rem;
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.6;
+  background: var(--cds-text-primary);
+  border-radius: 0;
+}
+
+.policy-code-block code {
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-size: 0.8rem;
+  color: var(--cds-layer-02);
+}

@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: en-US
+
+reviews:
+  profile: chill
+  high_level_summary: true
+  # Labels are set by contributors and their agents before every push, pull request, and issue.
+  # See .claude/skills/cuga-contributor-workflows/labels.md (mirrored in .cursor/ and .bob/).
+  suggested_labels: false
+  auto_apply_labels: false
+
+  slop_detection:
+    enabled: true
+    label: "ai-spam"
+
+  auto_review:
+    enabled: true
+    drafts: false

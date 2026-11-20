@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cuga.fullname" . }}
+  labels:
+    {{- include "cuga.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cuga.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cuga.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 7860
+              protocol: TCP
+          env:
+            {{- if .Values.persistence.dbs.enabled }}
+            - name: CUGA_DBS_DIR
+              value: "/data/dbs"
+            {{- end }}
+            {{- /* Address the execd sandbox calls tools back on. Only the chart knows the real
+                   Service name, so it is derived per release; a non-empty env value overrides it.
+                   The sandbox egress policy allows this host name, not pod IPs. Callback blocks
+                   live in the memory of the pod that registered them, so with more than one
+                   replica the Service needs session affinity or a per-pod address. */}}
+            {{- $callbackKey := "DYNACONF_ADVANCED_FEATURES__SANDBOX_CALLBACK_URL" }}
+            - name: {{ $callbackKey }}
+              value: {{ default (printf "http://%s.%s.svc.cluster.local:%v" (include "cuga.fullname" .) .Release.Namespace .Values.service.port) (get (.Values.env | default dict) $callbackKey) | quote }}
+            {{- $secret := .Values.existingSecret }}
+            {{- $sensitiveKeys := list "GROQ_API_KEY" "OIDC_CLIENT_SECRET" "OIDC_CLIENT_ID" "OIDC_DISCOVERY_URL" "OIDC_REDIRECT_URI" "DYNACONF_STORAGE__POSTGRES_URL" "VAULT_TOKEN" }}
+            {{- range $key, $value := .Values.env }}
+            {{- if ne $key $callbackKey }}
+            - name: {{ $key }}
+              {{- if and $secret (has $key $sensitiveKeys) }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secret }}
+                  key: {{ $key }}
+                  optional: true
+              {{- else }}
+              value: {{ $value | quote }}
+              {{- end }}
+            {{- end }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 15
+            failureThreshold: 5
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            failureThreshold: 10
+            timeoutSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 18
+            timeoutSeconds: 10
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.persistence.dbs.enabled }}
+          volumeMounts:
+            - name: dbs
+              mountPath: /data/dbs
+          {{- end }}
+      {{- if .Values.persistence.dbs.enabled }}
+      volumes:
+        - name: dbs
+          persistentVolumeClaim:
+            claimName: {{ include "cuga.fullname" . }}-dbs
+      {{- end }}

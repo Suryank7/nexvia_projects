@@ -1,0 +1,9 @@
+.variable-popup-body {
+  overflow-y: auto;
+  color: var(--cds-text-primary, #161616);
+}
+.variable-popup-body pre {
+  max-width: 100%;
+  overflow-x: auto;
+  font-family: "IBM Plex Mono", monospace;
+}

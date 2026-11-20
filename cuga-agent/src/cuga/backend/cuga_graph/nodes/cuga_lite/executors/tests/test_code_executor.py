@@ -1,0 +1,787 @@
+import asyncio
+import functools
+import pytest
+from unittest.mock import Mock
+
+from cuga.backend.cuga_graph.state.agent_state import AgentState, VariablesManager
+from cuga.backend.cuga_graph.nodes.cuga_lite.executors import CodeExecutor
+from cuga.backend.cuga_graph.nodes.cuga_lite.executors.common.security import SecurityValidator
+from cuga.backend.cuga_graph.nodes.cuga_lite.executors.execd.execd_executor import ExecdExecutor
+from cuga.backend.cuga_graph.nodes.cuga_lite.executors.execd.kernel_templates import filesystem_tools_code
+from cuga.config import settings
+
+
+@pytest.fixture
+def mock_state():
+    """Create a mock AgentState with VariablesManager."""
+    state = Mock(spec=AgentState)
+    state.variables_manager = VariablesManager()
+    state.reflection_skills_enabled = False
+    return state
+
+
+@pytest.mark.asyncio
+async def test_basic_execution_local(mock_state):
+    """Test basic code execution in local mode."""
+    code = "x = 5 + 3\nprint(x)"
+    result, new_vars = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={},
+        state=mock_state,
+        mode='local',
+    )
+
+    assert "8" in result
+    assert 'x' in new_vars
+    assert new_vars['x'] == 8
+
+
+@pytest.mark.asyncio
+async def test_execution_with_variables(mock_state):
+    """Test execution with existing variables."""
+    code = "y = x * 2\nprint(y)"
+    result, new_vars = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={'x': 5},
+        state=mock_state,
+        mode='local',
+    )
+
+    assert "10" in result
+    assert 'y' in new_vars
+    assert new_vars['y'] == 10
+
+
+@pytest.mark.asyncio
+async def test_async_tool_execution(mock_state):
+    """Test execution with async tools."""
+
+    async def my_tool(value: int) -> int:
+        await asyncio.sleep(0.01)
+        return value * 2
+
+    code = "result = await my_tool(5)\nprint(result)"
+    result, new_vars = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={'my_tool': my_tool},
+        state=mock_state,
+        mode='local',
+    )
+
+    assert "10" in result
+    assert 'result' in new_vars
+    assert new_vars['result'] == 10
+
+
+@pytest.mark.asyncio
+async def test_unknown_tool_name_gets_correction(mock_state):
+    """A fabricated tool name returns a correction listing the closest real tools.
+
+    Regression guard for the gpt-oss tool-name hallucination loop: calling a
+    non-existent tool used to surface only a raw NameError, so the agent kept
+    re-inventing the same bogus name until the step limit. The correction must
+    name the closest real tool so the agent can recover in one step.
+    """
+
+    async def mondial_geo_get_top_country_by_gdp_and_agriculture() -> int:
+        return 0
+
+    async def mondial_geo_get_mountain_count_by_country(country: str) -> int:
+        return 0
+
+    # References a real tool (so the context-usage guard passes) then calls a
+    # fabricated one — mirrors the real trajectory where the agent invents
+    # generic CRUD names after a valid find_tools/real-tool reference.
+    code = (
+        "mc = mondial_geo_get_mountain_count_by_country\n"
+        "result = await mondial_geo_get_countries_countries_get()\n"
+        "print(result)"
+    )
+    result, _ = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={
+            'mondial_geo_get_top_country_by_gdp_and_agriculture': (
+                mondial_geo_get_top_country_by_gdp_and_agriculture
+            ),
+            'mondial_geo_get_mountain_count_by_country': mondial_geo_get_mountain_count_by_country,
+        },
+        state=mock_state,
+        mode='local',
+    )
+
+    assert "tool-name correction" in result
+    assert "mondial_geo_get_countries_countries_get" in result
+    assert "Did you mean" in result
+    # the real tool the shortlister meant must be offered as a candidate
+    assert "mondial_geo_get_top_country_by_gdp_and_agriculture" in result
+
+
+@pytest.mark.asyncio
+async def test_unknown_name_no_close_match_points_to_find_tools(mock_state):
+    """With no similar tool loaded, the correction tells the agent to re-query find_tools."""
+
+    async def authors_get_author_details(author_id: int) -> dict:
+        return {}
+
+    code = "ad = authors_get_author_details\nresult = await repo_browser()\nprint(result)"
+    result, _ = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={'authors_get_author_details': authors_get_author_details},
+        state=mock_state,
+        mode='local',
+    )
+
+    assert "tool-name correction" in result
+    assert "find_tools" in result
+
+
+@pytest.mark.asyncio
+async def test_undefined_variable_keeps_bare_name_error(mock_state):
+    """A NameError on a plain variable reference must NOT get the tool correction.
+
+    Real trajectory (PR #416 review): the agent printed `formatted_total`
+    before computing it, recovered on the next step by writing the actual
+    computation, and the task passed. Injecting "call find_tools / do not
+    retry" there steers the agent away from the real fix (define the
+    variable), so the correction only fires when the missing name is
+    *called* like a function.
+    """
+
+    async def authors_get_author_details(author_id: int) -> dict:
+        return {}
+
+    code = "ad = authors_get_author_details\nprint(formatted_total)"
+    result, _ = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={'authors_get_author_details': authors_get_author_details},
+        state=mock_state,
+        mode='local',
+    )
+
+    assert "NameError" in result
+    assert "formatted_total" in result
+    assert "tool-name correction" not in result
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_stdout_preserved_when_later_line_raises(mock_state):
+    """Stdout from earlier successful lines must survive a later exception.
+
+    Regression for #547: find_tools discovery was printed in the same script as
+    a subsequent NameError, but LocalExecutor only read the redirect buffer
+    after a successful return — so the agent never saw the real tool names.
+    """
+
+    async def find_tools(intent: str, app: str = "") -> str:
+        return f"## tools for {app}\n- gmail_send_email_emails_post"
+
+    async def gmail_list_emails_emails_get() -> list:
+        return []
+
+    code = (
+        "listed = gmail_list_emails_emails_get\n"
+        "tools_output = await find_tools('send email with attachment', 'gmail')\n"
+        "print(tools_output)\n"
+        "print(undefined_after_discovery)"
+    )
+    result, _ = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={
+            'find_tools': find_tools,
+            'gmail_list_emails_emails_get': gmail_list_emails_emails_get,
+        },
+        state=mock_state,
+        mode='local',
+    )
+
+    assert "gmail_send_email_emails_post" in result
+    assert "Error during execution" in result
+    assert "undefined_after_discovery" in result
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_assignment_rhs_fabricated_tool_gets_correction(mock_state):
+    """Assignment-shaped fabricated tool names must get difflib correction.
+
+    Regression for #547: `send_email = gmail_send_message_send_message_post`
+    is a common alias pattern, but `_missing_name_usage` only treated Call
+    nodes as fabricated tools, so the hint was suppressed for assignment RHS.
+    """
+
+    async def gmail_send_email_emails_post(**kwargs) -> dict:
+        return {}
+
+    async def gmail_list_emails_emails_get() -> list:
+        return []
+
+    code = (
+        "listed = gmail_list_emails_emails_get\n"
+        "send_email = gmail_send_message_send_message_post\n"
+        "print(send_email)"
+    )
+    result, _ = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={
+            'gmail_send_email_emails_post': gmail_send_email_emails_post,
+            'gmail_list_emails_emails_get': gmail_list_emails_emails_get,
+        },
+        state=mock_state,
+        mode='local',
+    )
+
+    assert "tool-name correction" in result
+    assert "Did you mean" in result
+    assert "gmail_send_email_emails_post" in result
+
+
+@pytest.mark.unit
+def test_missing_name_usage_detects_assignment_rhs():
+    """AST helper marks assignment-RHS references as tool-shaped usage."""
+    from cuga.backend.cuga_graph.nodes.cuga_lite.executors.local.local_executor import LocalExecutor
+
+    used, defined = LocalExecutor._missing_name_usage(
+        'gmail_send_message_send_message_post',
+        'send_email = gmail_send_message_send_message_post',
+    )
+    assert used is True
+    assert defined is False
+
+    used, defined = LocalExecutor._missing_name_usage(
+        'formatted_total',
+        'print(formatted_total)',
+    )
+    assert used is False
+    assert defined is False
+
+
+def test_correction_cutoff_rejects_cross_app_junk():
+    """Weak cross-app matches must not be offered as suggestions.
+
+    With the old cutoff=0.4, a missing `simple_note_list_notes_get` surfaced
+    `spotify_create_playlist_post` (wrong app entirely). At 0.6 such junk is
+    filtered and the agent is told to re-query find_tools instead.
+    """
+    from cuga.backend.cuga_graph.nodes.cuga_lite.executors.local.local_executor import LocalExecutor
+
+    hint = LocalExecutor._unknown_tool_correction(
+        NameError("name 'simple_note_list_notes_get' is not defined", name='simple_note_list_notes_get'),
+        available_tools=['spotify_create_playlist_post', 'find_tools'],
+        code="result = await simple_note_list_notes_get()",
+    )
+
+    assert "tool-name correction" in hint
+    assert "spotify_create_playlist_post" not in hint
+    assert "find_tools" in hint
+
+
+def test_correction_warns_about_lookalike_actions():
+    """Suggestions carry a caution: a lookalike name may perform a different action.
+
+    difflib ranks `phone_delete_sms_message_sms_delete` above the intended
+    read tool for a missing `phone_get_sms_messages_sms_get`; the caution
+    keeps the agent from blindly taking the head of the list.
+    """
+    from cuga.backend.cuga_graph.nodes.cuga_lite.executors.local.local_executor import LocalExecutor
+
+    hint = LocalExecutor._unknown_tool_correction(
+        NameError(
+            "name 'phone_get_sms_messages_sms_get' is not defined", name='phone_get_sms_messages_sms_get'
+        ),
+        available_tools=['phone_delete_sms_message_sms_delete', 'phone_show_sms_messages_sms_get'],
+        code="result = await phone_get_sms_messages_sms_get()",
+    )
+
+    assert "Did you mean" in hint
+
+
+def test_correction_ignores_call_shapes_inside_string_literals():
+    """A name followed by ``(`` inside a string literal is not a call.
+
+    PR #416 review: the old text search matched phrases like
+    ``var = " agent_1("`` and treated the plain-variable NameError as a
+    fabricated tool call. The AST check only counts real Call nodes.
+    """
+    from cuga.backend.cuga_graph.nodes.cuga_lite.executors.local.local_executor import LocalExecutor
+
+    hint = LocalExecutor._unknown_tool_correction(
+        NameError("name 'agent_1' is not defined", name='agent_1'),
+        available_tools=['find_tools', 'authors_get_author_details'],
+        code='var = " agent_1(x)"\nprint(agent_1)',
+    )
+
+    assert hint == ""
+
+
+def test_correction_suppressed_for_agent_defined_helper():
+    """A helper the agent defines in the same code keeps its bare NameError.
+
+    PR #416 review: calling a self-written helper before its ``def`` (or after
+    a definition that failed) used to get "call find_tools" guidance — the
+    right fix is to repair the helper, not to hunt for a tool.
+    """
+    from cuga.backend.cuga_graph.nodes.cuga_lite.executors.local.local_executor import LocalExecutor
+
+    hint = LocalExecutor._unknown_tool_correction(
+        NameError("name 'helper1' is not defined", name='helper1'),
+        available_tools=['find_tools', 'authors_get_author_details'],
+        code="res = await helper1(arg1)\n\nasync def helper1(a):\n    return a\n",
+    )
+
+    assert hint == ""
+
+
+def test_correction_no_close_match_mentions_helper_possibility():
+    """With no similar tool, the hint must not assume the name was a tool.
+
+    A lost agent-written helper (defined in an earlier, separate execution)
+    reaches this path too; the message covers both repairs — re-include the
+    definition, or find_tools if a tool was meant.
+    """
+    from cuga.backend.cuga_graph.nodes.cuga_lite.executors.local.local_executor import LocalExecutor
+
+    hint = LocalExecutor._unknown_tool_correction(
+        NameError("name 'helper1' is not defined", name='helper1'),
+        available_tools=['authors_get_author_details'],
+        code="res = await helper1(arg1)",
+    )
+
+    assert "tool-name correction" in hint
+    assert "helper function" in hint
+    assert "find_tools" in hint
+    assert "delete vs get" in hint
+
+
+@pytest.mark.asyncio
+async def test_syntax_error_blocked_before_exec(mock_state, monkeypatch):
+    """Invalid Python is rejected before sandbox exec with an actionable hint."""
+    monkeypatch.setattr(settings.skills, "enabled", False)
+    code = 'phase2_md = f"""\n# report\n'
+
+    result, new_vars = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={},
+        state=mock_state,
+        mode='local',
+    )
+
+    assert "Python syntax error" in result
+    assert "unterminated" in result.lower() or "f-string" in result.lower()
+    assert "write_file" in result
+    assert new_vars == {}
+    assert "Traceback" not in result
+
+
+@pytest.mark.asyncio
+async def test_syntax_error_blocked_before_exec_in_skills_relaxed_mode(mock_state):
+    """Skills/relaxed execution loosens import checks but must still reject unparseable code
+    before exec() — regression test for the syntax guard being skipped alongside the
+    security checks it was bundled with."""
+    mock_state.reflection_skills_enabled = True
+    code = 'phase2_md = f"""\n# report\n'
+
+    result, new_vars = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={},
+        state=mock_state,
+        mode='local',
+    )
+
+    assert "Python syntax error" in result
+    assert new_vars == {}
+    assert "Traceback" not in result
+
+
+def test_format_syntax_error_hints_for_unterminated_fstring():
+    code = 'x = f"""\nhello\n'
+    try:
+        compile(code, "<code>", "exec")
+    except SyntaxError as exc:
+        msg = SecurityValidator.format_syntax_error(code, exc)
+    else:
+        raise AssertionError("expected SyntaxError")
+
+    assert "Python syntax error at line" in msg
+    assert "write_file" in msg
+
+
+@pytest.mark.asyncio
+async def test_dangerous_import_blocked(mock_state, monkeypatch):
+    """Test that dangerous imports are blocked."""
+    monkeypatch.setattr(settings.skills, "enabled", False)
+    code = "import os\nos.system('echo hello')"
+
+    with pytest.raises(ImportError) as exc_info:
+        result, new_vars = await CodeExecutor.eval_with_tools_async(
+            code=code,
+            _locals={},
+            state=mock_state,
+            mode='local',
+        )
+
+    assert "not allowed" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_skills_mode_still_enforces_import_allowlist(mock_state, monkeypatch):
+    """Skills mode no longer bypasses the import allowlist (GHSA-4rj2).
+
+    Enabling Skills used to force relaxed execution for the whole run, which
+    disabled the allowlist entirely. Skills is now decoupled from relaxation, so
+    a non-allowlisted import is rejected exactly as it would be without skills.
+    """
+    mock_state.reflection_skills_enabled = True
+    code = "import pathlib\np = pathlib.Path('.')\nprint(p.name or '.')"
+    with pytest.raises(ImportError, match="not allowed"):
+        await CodeExecutor.eval_with_tools_async(
+            code=code,
+            _locals={"x": 1},
+            state=mock_state,
+            mode="local",
+        )
+
+
+@pytest.mark.unit
+def test_skills_has_no_relaxation_lever_over_wrapped_code_validation():
+    """Skills no longer has any lever over the sandbox (GHSA-4rj2/GHSA-w5rx).
+
+    The only relaxation lever is ``execution.enforce_code_security = false``; there is no per-run
+    skills flag any more, so the strict validator rejects dangerous code on every
+    normal (sandbox-on) run.
+    """
+    with pytest.raises(PermissionError, match="Security violation"):
+        SecurityValidator.validate_wrapped_code("open('/tmp/x')")
+
+
+@pytest.mark.asyncio
+async def test_allowed_import_works(mock_state):
+    """Test that allowed imports work."""
+    code = "import json\ndata = json.dumps({'key': 'value'})\nprint(data)"
+    result, new_vars = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={},
+        state=mock_state,
+        mode='local',
+    )
+
+    assert '"key"' in result or "'key'" in result
+    assert 'data' in new_vars
+
+
+@pytest.mark.asyncio
+async def test_pandas_support(mock_state):
+    """Test pandas support if available."""
+    try:
+        code = "import pandas as pd\ndf = pd.DataFrame({'a': [1, 2, 3]})\nprint(len(df))"
+        result, new_vars = await CodeExecutor.eval_with_tools_async(
+            code=code,
+            _locals={},
+            state=mock_state,
+            mode='local',
+        )
+
+        assert "3" in result
+        assert 'df' in new_vars
+    except ImportError:
+        pytest.skip("pandas not installed")
+
+
+@pytest.mark.asyncio
+async def test_variable_reordering(mock_state):
+    """Test that printed variables are moved to end."""
+    code = "x = 5\ny = 10\nz = 15\nprint(y)"
+    result, new_vars = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={},
+        state=mock_state,
+        mode='local',
+    )
+
+    # y should be moved to the end since it appears in print statement
+    # and is more than 3 characters (actually it's 1, so it won't be moved)
+    # Let's test with a longer variable name
+    assert 'x' in new_vars and 'y' in new_vars and 'z' in new_vars
+
+
+@pytest.mark.asyncio
+async def test_variable_reordering_long_name(mock_state):
+    """Test that printed variables with long names are moved to end."""
+    code = "short = 5\nlonger_name = 10\nanother = 15\nprint(longer_name)"
+    result, new_vars = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={},
+        state=mock_state,
+        mode='local',
+    )
+
+    var_names = list(new_vars.keys())
+    # longer_name should be moved to the end since it's > 3 chars and in print
+    assert var_names[-1] == 'longer_name'
+
+
+@pytest.mark.asyncio
+async def test_timeout_handling(mock_state):
+    """Test that timeouts are handled properly."""
+    code = "import asyncio\nawait asyncio.sleep(100)"
+    result, new_vars = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={},
+        state=mock_state,
+        mode='local',
+    )
+
+    assert "timeout" in result.lower() or "error" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_expression_auto_print(mock_state):
+    """Test that final expressions are auto-printed."""
+    code = "x = 5\nx * 2"
+    result, new_vars = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={},
+        state=mock_state,
+        mode='local',
+    )
+
+    assert "10" in result
+
+
+@pytest.mark.asyncio
+async def test_mode_auto_detection(mock_state):
+    """Test that mode is auto-detected from settings."""
+    code = "x = 42"
+    result, new_vars = await CodeExecutor.eval_with_tools_async(
+        code=code,
+        _locals={},
+        state=mock_state,
+    )
+
+    assert 'x' in new_vars
+    assert new_vars['x'] == 42
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_generated_exit_ends_the_block_not_the_runtime(mock_state, monkeypatch):
+    """exit() ends the block early and keeps its variables — it must not escape.
+
+    Relaxed execution hands generated code the full builtins dict, so `exit`,
+    `quit` and `SystemExit` are all in scope. SystemExit is a BaseException, so
+    it used to walk past every `except Exception` above the executor and
+    terminate the host process (an evaluation sweep died at task 23 of 40 this
+    way). Stopping the block early is legitimate intent, so it is honoured:
+    stdout and the variables computed before the exit survive, exactly as they
+    would for a block that ended normally.
+
+    Relaxed execution now needs an explicit `execution.enforce_code_security = false` (GHSA-4rj2):
+    neither skills nor a benchmark profile grants the full builtins this scenario needs.
+    """
+    monkeypatch.setattr(settings.execution, "enforce_code_security", False)
+
+    result, new_vars = await CodeExecutor.eval_with_tools_async(
+        code=(
+            "cart_total = 299.0\n"
+            "partner_email = None\n"
+            "print('computed the total')\n"
+            "if not partner_email:\n"
+            "    exit()\n"
+            "unreachable_var = True"
+        ),
+        _locals={},
+        state=mock_state,
+        mode='local',
+    )
+    assert "ended early" in result
+    assert "computed the total" in result
+    # work done before the exit is kept, so the next block can build on it
+    assert new_vars.get('cart_total') == 299.0
+    assert 'unreachable_var' not in new_vars
+
+    # an explicit reason is surfaced to the agent rather than swallowed
+    result, _ = await CodeExecutor.eval_with_tools_async(
+        code="raise SystemExit('no candidate found')",
+        _locals={},
+        state=mock_state,
+        mode='local',
+    )
+    assert "no candidate found" in result
+
+
+# ─── _serialize_tools: _cuga_app_name takes priority over name-splitting ─────
+
+
+def _make_wrapped_tool(*, app_name: str = None):
+    """Return a minimal async callable mimicking a counted_tool_call-wrapped tool.
+
+    functools.wraps copies __dict__, so attributes set on the inner function
+    survive the counted_tool_call layer exactly as in production.
+    """
+
+    async def _inner(**kwargs):
+        pass  # pragma: no cover
+
+    if app_name:
+        _inner._cuga_app_name = app_name
+
+    @functools.wraps(_inner)
+    async def _wrapped(**kwargs):
+        return await _inner(**kwargs)  # pragma: no cover
+
+    return _wrapped
+
+
+@pytest.mark.unit
+async def test_execd_sends_filesystem_tools_inline_and_everything_else_as_callback_stubs(monkeypatch):
+    """Filesystem tools and run_command run in the kernel; every other callable is a stub calling CUGA."""
+    from cuga.backend.cuga_graph.nodes.cuga_lite.executors.execd import tool_callback
+
+    sent: list[str] = []
+
+    async def fake_run_remote(code, thread_id):
+        sent.append(code)
+        return "!!!===!!!\n{}"
+
+    monkeypatch.setattr(ExecdExecutor, "_run_remote", staticmethod(fake_run_remote))
+    monkeypatch.setattr(tool_callback, "callback_url", lambda: "http://cuga.test:7860")
+
+    async def crm_get_contact(**kwargs):
+        pass  # pragma: no cover
+
+    async def run_command(cmd):
+        pass  # pragma: no cover
+
+    run_command._cuga_app_name = "shell"  # as runtime_tools tags the shell tool
+    tools = {
+        "write_file": _make_wrapped_tool(app_name="filesystem"),
+        "run_command": run_command,
+        "crm_get_contact": crm_get_contact,
+    }
+    state = Mock()
+    state.variables_manager = VariablesManager()
+    state.service_scope = None
+    await ExecdExecutor().execute_for_cuga_lite(
+        "async def _async_main():\n    await crm_get_contact(id=1)\n    return locals()", tools, state, "t1"
+    )
+
+    code = sent[0]
+    assert "async def write_file(path, content)" in code  # inline filesystem tool
+    assert "_CUGA_SH_ROOT" in code  # inline run_command
+    assert "async def crm_get_contact(*args, **kwargs)" in code
+    assert "_cuga_cb_acall('crm_get_contact'" in code
+    # Not routed back to CUGA...
+    assert "_cuga_cb_acall('write_file'" not in code and "_cuga_cb_acall('run_command'" not in code
+    # ...but still charged against the call budget through the one counted callback.
+    assert "_cuga_cb_acall('_cuga_charge_tool_call'" in code
+    assert "write_file = _cuga_charged(write_file)" in code
+    assert "run_command = _cuga_charged(run_command)" in code
+    assert "http://cuga.test:7860/sandbox/tools/call" in code
+
+
+@pytest.mark.unit
+async def test_execd_keeps_a_tool_that_is_only_named_run_command(monkeypatch):
+    """An MCP/SDK tool called run_command is that tool, not the sandbox shell (review item 36)."""
+    from cuga.backend.cuga_graph.nodes.cuga_lite.executors.execd import tool_callback
+
+    sent: list[str] = []
+
+    async def fake_run_remote(code, thread_id):
+        sent.append(code)
+        return ""
+
+    monkeypatch.setattr(ExecdExecutor, "_run_remote", staticmethod(fake_run_remote))
+    monkeypatch.setattr(tool_callback, "callback_url", lambda: "http://cuga.test:7860")
+
+    async def run_command(cmd):
+        pass  # pragma: no cover
+
+    state = Mock()
+    state.variables_manager = VariablesManager()
+    state.service_scope = None
+    await ExecdExecutor().execute_for_cuga_lite(
+        "async def _async_main():\n    await run_command('x')\n    return locals()",
+        {"run_command": run_command},
+        state,
+        "t1",
+    )
+
+    assert "_CUGA_SH_ROOT" not in sent[0]
+    assert "_cuga_cb_acall('run_command'" in sent[0]
+
+
+@pytest.mark.unit
+async def test_execd_without_a_callback_url_fails_with_a_clear_message(monkeypatch):
+    from cuga.backend.cuga_graph.nodes.cuga_lite.executors.execd import tool_callback
+
+    monkeypatch.setattr(tool_callback, "callback_url", lambda: "")
+
+    async def crm_get_contact(**kwargs):
+        pass  # pragma: no cover
+
+    state = Mock()
+    state.variables_manager = VariablesManager()
+    state.service_scope = None
+    with pytest.raises(RuntimeError, match="sandbox_callback_url"):
+        await ExecdExecutor().execute_for_cuga_lite(
+            "async def _async_main():\n    await crm_get_contact(id=1)\n    return locals()",
+            {"crm_get_contact": crm_get_contact},
+            state,
+            "t1",
+        )
+
+
+@pytest.mark.unit
+def test_execd_filesystem_tools_code_defines_all_tools():
+    """filesystem_tools_code must define write_file, read_file, list_files inline."""
+    code = filesystem_tools_code("/workspace/test-thread")
+
+    for name in ("write_file", "read_file", "list_files", "make_directory", "edit_file"):
+        assert f"async def {name}" in code, f"Expected 'async def {name}' in filesystem tools code"
+
+    # Must reference the correct workspace root
+    assert "/workspace/test-thread" in code
+
+
+@pytest.mark.unit
+async def test_a_plan_choosing_local_stays_local_with_execd_switched_on(mock_state, monkeypatch):
+    """execution.python_backend = "local" wins over the Manage UI toggle: the plan is the one source."""
+    from cuga.backend.cuga_graph.nodes.cuga_agent_core.policy.execution_policy import ExecutionPlan
+    from cuga.backend.cuga_graph.nodes.cuga_lite.executors.execd import connection
+
+    monkeypatch.setattr(connection, "execd_active", lambda: True)
+
+    async def must_not_run(*a, **k):
+        raise AssertionError("execd must not be used when the plan says local")
+
+    monkeypatch.setattr(ExecdExecutor, "execute_for_cuga_lite", must_not_run)
+    plan = ExecutionPlan(
+        requested_backend="local", python_backend="local", shell_backend="none", filesystem_backend="none"
+    )
+    result, _ = await CodeExecutor.eval_with_tools_async(
+        code="print('here')", _locals={}, state=mock_state, plan=plan
+    )
+    assert "here" in result
+
+
+@pytest.mark.unit
+async def test_find_tools_block_is_not_forced_local_under_execd(mock_state, monkeypatch):
+    """With execd the tool callback reaches find_tools, so the block stays in the sandbox."""
+    seen = {}
+
+    async def fake_execute(self, wrapped_code, context_locals, state, thread_id=None, apps_list=None):
+        seen["ran"] = True
+        return "ok", {}
+
+    monkeypatch.setattr(ExecdExecutor, "execute_for_cuga_lite", fake_execute)
+
+    async def find_tools(query, app_name=""):
+        return "listing"  # pragma: no cover
+
+    await CodeExecutor.eval_with_tools_async(
+        code="r = await find_tools('x')",
+        _locals={"find_tools": find_tools},
+        state=mock_state,
+        mode="execd",
+    )
+    assert seen.get("ran") is True

@@ -1,0 +1,120 @@
+# Create pull request
+
+All checks and the PR target **origin** upstream / base `main`.
+
+## Step 1: Validate local repository
+
+### Uncommitted changes
+
+```bash
+git status --porcelain
+```
+
+If this returns any output, **STOP**. Commit or stash first. Do not create the PR until clean.
+
+### Resolve branch and origin repo
+
+`origin` is a Git remote name — resolve its URL, then ask `gh` for `OWNER/REPO` (do not pass the literal remote name `origin` to `gh repo view`).
+
+```bash
+branch="$(git branch --show-current)"
+if [ -z "$branch" ]; then
+  echo "Detached HEAD; check out a local branch before creating a PR." >&2
+  exit 1
+fi
+
+origin_url="$(git remote get-url origin)"
+origin_repo="$(gh repo view "$origin_url" --json nameWithOwner -q .nameWithOwner)"
+```
+
+### Open pull request limit (HARD RULE)
+
+An author may have at most **5 open pull requests, drafts included**. No exceptions. Run this after resolving `origin_repo`:
+
+```bash
+open_count="$(gh pr list --repo "$origin_repo" --author "@me" --state open --json number --jq length)"
+if [ "$open_count" -ge 5 ]; then
+  echo "You already have $open_count open pull requests; the limit is 5 (drafts count)." >&2
+  echo "Merge or close one first. Do not open this pull request." >&2
+  exit 1
+fi
+```
+
+If the limit is reached, **STOP** and tell the user. Do not open the pull request as a draft or split it. CI (`.github/workflows/pr-limit.yml`) closes every pull request newer than the author's 5 oldest open ones.
+
+### Remote parity (`origin/<branch>`)
+
+Prefer `refs/remotes/origin/<branch>` over `@{u}`. Fetch first so the check is not stale.
+
+```bash
+git fetch origin "$branch"
+
+if ! git rev-parse --verify "refs/remotes/origin/$branch^{commit}" >/dev/null 2>&1; then
+  echo "No origin/$branch yet. After user confirmation: git push -u origin \"$branch\""
+  # STOP until pushed with -u
+else
+  # "<behind> <ahead>" relative to refs/remotes/origin/$branch...HEAD
+  git rev-list --left-right --count "refs/remotes/origin/$branch...HEAD"
+fi
+```
+
+If there is no `origin/<branch>`, obtain confirmation and push with `git push -u origin <branch-name>` before continuing.
+
+If **ahead** is greater than zero, **STOP**. Push first (`git push origin <branch-name>`).
+
+Before any push in this flow, **MUST** run [labels.md](labels.md) (it updates the labels of an open pull request).
+
+If **behind** is greater than zero, **STOP**. Update the local branch (pull/rebase) before creating the PR.
+
+Only if the tree is clean and both counts are zero, continue.
+
+## Step 2: Create the pull request
+
+1. Pick the right template from `.github/PULL_REQUEST_TEMPLATE/` (typically `bugfix.md`, `feature.md`, `docs.md`, or `chore.md`).
+2. Ask which GitHub issue this PR closes or relates to. If the user skips / says none, leave Related Issue blank or note none — do not block.
+3. **Assign linked issue (hard gate).** If an issue number was provided in step 2, assign it to the PR author before continuing. Skip if no issue was linked.
+
+   Add the author; do not remove existing assignees. `@me` resolves to the authenticated `gh` user.
+
+   ```bash
+   gh issue edit "$issue" --repo "$origin_repo" --add-assignee @me
+   gh issue view "$issue" --repo "$origin_repo" --json assignees \
+     --jq --arg me "$(gh api user -q .login)" 'any(.assignees[].login; . == $me)'
+   ```
+
+   If the verification prints `false`, **STOP**. Do not create the PR. Report the failure (permissions, not a collaborator, etc.) and let the user fix it.
+
+4. Fill the template from current commits and changes:
+   - Related Issue
+   - Description
+   - Type of Changes
+   - Root Cause / Solution (bugfixes)
+   - Testing
+   - Checklist
+5. **Choose labels (MUST).** Follow [labels.md](labels.md) against `origin/main...HEAD`: exactly one
+   `design-impact:`, exactly one `design-review:`, one `area:` label per changed area, exactly one `evaluation:`,
+   and exactly one `readability:` (improve the description until `readability: good` is true). Do not create the
+   PR without them.
+6. Create (pass title via a variable; pass body via `--body-file` so shell does not interpolate the Markdown; pass
+   each label with `--label`):
+
+```bash
+title="<title in commit convention>"
+body_file="$(mktemp)"
+trap 'rm -f "$body_file"' EXIT
+cat >"$body_file" <<'EOF'
+<filled template>
+EOF
+
+gh pr create --repo "$origin_repo" --base main --title "$title" --body-file "$body_file" \
+  --label "design-impact: <low|medium|high>" \
+  --label "design-review: <needed|done|not needed>" \
+  --label "area: <area>" \
+  --label "evaluation: <needed|done|not needed>" \
+  --label "readability: <good|fair|poor>"
+```
+
+7. Verify the labels landed: `gh pr view "$branch" --repo "$origin_repo" --json labels --jq '[.labels[].name]'`. If you could
+   not set them (for example, a pull request from a fork), follow rule 8 in [labels.md](labels.md).
+
+Return the PR URL and its labels to the user.

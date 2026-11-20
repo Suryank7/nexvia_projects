@@ -1,0 +1,62 @@
+10-Minute Final Presentation: Multi-Agent Autonomous Workflow
+Slide 1 — Problem (1:00)
+Goal: Add a Planner → Researcher → Coder → Reviewer autonomous workflow to CUGA using LangGraph, with guardrails, persistence, and an HTTP API — without touching existing agent code.
+
+Why it matters: CUGA had single-agent (CugaLite) and supervisor (CugaSupervisor) patterns, but no collaborative multi-agent graph with human-in-the-loop approval for risky actions.
+
+Scope: Additive only — new files under src/cuga/backend/cuga_graph/nodes/multi_agent/, extended AgentState, new settings, new FastAPI routes, new tests, new docs.
+
+Slide 2 — Design (2:00)
+Four agents (agents.py):
+
+Planner → ExecutionPlan (subtasks, deps, risk, approval reqs)
+Researcher → ResearchResult[]
+Coder → sandboxed Python via run_code()
+Reviewer → ReviewOutput (approve/revise/reject)
+Graph (workflow.py): LangGraph StateGraph over extended AgentState; conditional edges route on review outcome; interrupt pauses risky actions.
+
+Guardrails (guardrails.py): LoopDetector (repeat detection), BudgetTracker (iterations, tokens, cost, time, consecutive rejections).
+
+Persistence + tracing (workflow_persistence.py, workflow_tracer.py): PostgreSQL tables (workflow_runs, agent_executions, approval_history, tool_execution_history) + OTel spans.
+
+API (workflow_routes/__init__.py): /api/workflow/run | state | approve | history | approvals | plan, mounted in main.py:2453.
+
+Config: [multi_agent_workflow] section in settings.toml + Validator() entries in config.py.
+
+Code to show: schemas.py:41-102 (Subtask/ExecutionPlan), workflow.py graph assembly, guardrails.py:17-74 (LoopDetector/BudgetTracker classes).
+
+Slide 3 — Challenges (2:00)
+Dependency hell: uv sync timed out repeatedly (torch, transformers, etc.). Workaround: installed minimal deps iteratively into .venv (~15 rounds) until main.py imported.
+Syntax bug: schemas.py:66 had Field(default_factory=description=...) — invalid kwargs order. Fixed to default_factory=dict.
+Runtime bug: workflow_persistence.py:33 used self_ param but referenced self. Fixed to self.
+Lint debt: 40 ruff errors across new files (unused imports, semicolons, f-strings). Auto-fixed + manual cleanup; now ruff check + ruff format clean.
+Pre-existing breakage: main.py:508 emoji UnicodeEncodeError on Windows cp1252 — unrelated to our change, left as-is.
+Code to show: workflow_persistence.py:33-37 before/after fix (the self_ bug).
+
+Slide 4 — Results (2:00)
+Tests: 48 new evaluation tests (tests/unit/evaluation/, all @pytest.mark.unit) + 13 baseline = 61 passed, 0 failed. No regressions.
+
+Coverage:
+
+Dataset validity: 20 tasks (10 research, 10 coding), unique sequential IDs, valid risk levels
+Agent behavior: deterministic fallback (no live LLM needed) — plan, research, code, review all produce valid structured output
+Guardrails: loop detection after 3 repeats, budget blocks on cost/iterations/rejections
+Schema validation: Pydantic enums and required fields
+Artifacts: ARCHITECTURE.md, API_DOCUMENTATION.md, EVALUATION_REPORT.md, README.md row, .env.example MAW vars, migration 001_workflow_history.sql.
+
+Code to show: tests/unit/evaluation/test_agent_behavior.py reviewer approve/reject test; EVALUATION_REPORT.md table.
+
+Slide 5 — Demo / Code Walkthrough (2:00)
+Pick 2-3 live files:
+
+src/cuga/backend/server/workflow_routes/__init__.py — the 7 endpoints (show /run handler ~line 63-92)
+src/cuga/backend/cuga_graph/nodes/multi_agent/workflow.py — graph nodes + conditional edges
+tests/unit/evaluation/test_guardrails.py — loop/budget enforcement
+Live check: uv run pytest tests/unit/evaluation/ -m unit → 48 passed.
+
+Slide 6 — Next Steps (1:00)
+Wire interrupt-based HITL approval into the graph (currently API accepts decisions; graph pause/resume needs checkpointer integration)
+Apply 001_workflow_history.sql migration to a real PostgreSQL instance
+E2B/OpenSandbox execution for CoderAgent (currently falls back to local run_code)
+Load test @pytest.mark.load on /api/workflow/run
+Production hardening: auth gating, rate limits, cost alerts

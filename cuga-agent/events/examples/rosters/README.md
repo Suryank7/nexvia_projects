@@ -1,0 +1,145 @@
+# Domain Rosters — organized agent families
+
+The big roster `events/examples/rosters/supervisor_agents_full.yaml` is one flat supervisor over 27
+sub-agents thrown together — a grab-bag with no theme. (`default.yaml`, the roster actually shipped
+and deployed, is the small no-AP core: 8 sub-agents under the `cuga` supervisor.)
+These roster files reorganize the **same schema** into **coherent
+domain-intelligence families**: one supervisor per domain, each owning a *small set of focused
+sub-agents that belong together*, so an agent means something ("Box Intelligence") instead of
+being a random pile.
+
+Grouped along the same lines as the Activepieces app catalogue — Enterprise Productivity,
+Market & Research Intelligence, and the document-/recording-/code-centric flows.
+
+> **Nothing here is wired in.** These are drop-in *alternatives* to the root roster, authored for
+> testing. No code changed, no server restarted. Each file uses the loader schema
+> `supervisor: … / agents: …`, where every sub-agent carries `name`, `special_instructions` and
+> `mcp_servers`. Which triggers an agent covers is recorded in **comments**, mirrored from
+> `src/cuga/backend/events/triggers.py` — it is documentation, not a structured field the loader reads.
+
+## The families
+
+| File | Domain | Watches | Sub-agents |
+|---|---|---|---|
+| `box_document_intelligence.yaml` | **Box & Documents** | Box files/folders/comments, email attachments | resume_reviewer · recording_summarizer · document_summarizer · comment_responder · folder_indexer |
+| `inbox_calendar_intelligence.yaml` | **Inbox & Calendar** | Gmail, Google Calendar | email_triager · attachment_handler · label_watcher · meeting_prep · followup_writer |
+| `repository_intelligence.yaml` | **GitHub repo** | all 14 GitHub triggers | pr_reviewer · security_watchdog · issue_triager · repo_lifecycle · release_notes |
+| `team_comms_intelligence.yaml` | **Team chat** | Slack, Discord, Telegram | channel_monitor · incident_triage · workspace_lifecycle · link_summarizer · support_digest |
+| `market_research_intelligence.yaml` | **Outside world** | RSS, YouTube, Pinterest, markets, papers | ai_trend_radar · competitive_analyst · feed_watcher · video_researcher · market_briefer · paper_scout |
+| `personal_assistant.yaml` | **Everyday chat** | (conversation only, no triggers) | pricebot · weatherbot · places_guide · recipe_composer · entertainment · find_a_doctor · meetup_finder |
+
+Together they cover every trigger the flat roster did, but each sub-agent now sits in a family
+where its siblings share tools, payload conventions, and a supervisor whose routing instruction is
+domain-specific (e.g. "route a resume to resume_reviewer, a recording to recording_summarizer").
+
+## Enterprise test-bed rosters — split by AP dependency
+
+A second, orthogonal cut for demoing "the teams an enterprise would deploy." These are named
+`no_ap_*` / `ap_*` so the Activepieces dependency is legible from the filename alone. **AP-dependency
+is a property of the *triggers*, not the agents** — an `ap_*` roster fields SaaS push events
+(Gmail/GitHub/Box/Calendar) that CUGA can't watch directly, so it needs AP; a `no_ap_*` roster's
+triggers are all direct channels (Slack/Discord/Telegram) + native cron/poll/RSS, so it runs with
+**zero AP infra**. All agents are pulled verbatim from `supervisor_agents_full.yaml` — regrouped, not
+rewritten. Where a borrowed agent had a mixed trigger set, the `no_ap_*` files trim the trigger
+notes in its comments down to only the AP-free triggers so the file is honestly no-AP.
+
+| File | Persona | Sub-agents | AP |
+|---|---|---|---|
+| `no_ap_research_desk.yaml` | Research & Strategy | research_compass · papers · ai_labs_news · wiki_dive · webpage_summarizer | none |
+| `no_ap_markets_desk.yaml` | Markets / Finance | pricebot · market_briefer · competitive_analyst · feed_watcher (RSS) | none |
+| `no_ap_it_helpdesk.yaml` | IT Helpdesk / Support | ibm_docs_qa · code_auditor · incident_triage · support_digest | none (Slack/Discord direct) |
+| `no_ap_learning_desk.yaml` | Learning / Study | explainer · paper_reader · video_tutor · study_notes · quiz_master | none |
+| `ap_exec_office.yaml` | Executive Office | mailbot · resume_judge | **AP** — Gmail/Calendar/Box |
+| `ap_devops.yaml` | Engineering / DevOps | pr_reviewer · repo_watcher · incident_triage · github_trending · code_auditor | **AP** — GitHub push |
+
+## The organizing principle
+
+- **One domain = one file = one supervisor.** A domain is a *source of events + a purpose*, not a
+  single integration. "Box Intelligence" is about documents, so it also fields email attachments;
+  "Team Comms" spans Slack + Discord + Telegram because they're the same job on different transports.
+- **Each sub-agent does ONE meaningful thing**, and its comments note the exact triggers it covers
+  (mirrored from `src/cuga/backend/events/triggers.py`). No sub-agent is a catch-all.
+- **Tools stay within the real MCP set**: `cuga_finance · cuga_knowledge · cuga_geo · cuga_web ·
+  cuga_code · cuga_text`. No invented servers.
+- **Supervisor name stays `cuga`** so a file is drop-in: events still address the one agent `cuga`;
+  only its roster (and personality) changes per domain.
+
+## Write your own roster in 10 minutes
+
+A roster is one YAML file: a supervisor that hands each request to one sub-agent, and the
+sub-agents that do the work. Copy this, then change the names and instructions:
+
+```yaml
+supervisor:
+  name: cuga            # keep "cuga" so the file is a drop-in replacement
+  special_instructions: |
+    You are the <Team> supervisor. Delegate EVERY task to exactly ONE sub-agent and return its
+    answer; never answer yourself. Route <kind of request> to agent_a, <other kind> to agent_b.
+agents:
+  - name: agent_a
+    special_instructions: |
+      <One topic. Which tool to use. What the answer looks like.>
+    mcp_servers:
+      - name: cuga_knowledge
+  - name: agent_b
+    special_instructions: |
+      <...>
+    mcp_servers:
+      - name: cuga_web
+```
+
+### Servers used by these examples
+
+| Server | Tools |
+|---|---|
+| `cuga_web` | web_search, fetch_webpage, fetch_webpage_links, fetch_feed, search_feeds, get_youtube_video_info, get_youtube_transcript |
+| `cuga_knowledge` | search_wikipedia, get_wikipedia_article, get_article_summary, get_article_sections, get_related_articles, search_arxiv, get_arxiv_paper, search_semantic_scholar, get_paper_references |
+| `cuga_geo` | geocode, find_hikes, search_attractions, get_weather |
+| `cuga_finance` | get_crypto_price, get_stock_quote |
+| `cuga_code` | check_python_syntax, extract_code_metrics, detect_language |
+| `cuga_text` | chunk_text, count_tokens, extract_text, extract_text_from_bytes |
+
+These are the tools the servers listed when this was written; the servers are the source of truth.
+`cuga_local` (system monitoring) is registered too, but no example roster uses it.
+
+### Writing good instructions
+
+An abridged excerpt from `webpage_summarizer` in `default.yaml`:
+
+> Given a URL, fetch the page (`fetch_webpage`) and summarize it: what it is, the 3-5 key points,
+> and who should care. … Never summarize a page you did not fetch.
+
+1. **One job per agent.** This one summarizes web pages and nothing else.
+2. **Name the tool.** `fetch_webpage`, so the agent doesn't guess.
+3. **Describe the answer.** "What it is, the 3-5 key points, who should care" can be checked.
+4. **Add a "don't make things up" rule.** The last sentence is the one to copy.
+
+### Naming
+
+Name the file `no_ap_<name>.yaml` if none of its triggers needs Activepieces. That depends on how
+events arrive, not on which MCP servers the agents use: in `src/cuga/backend/events/triggers.py`,
+a trigger with `backend="direct"` doesn't need it and `backend="ap"` does. For a `no_ap_` file,
+add a row to the "Enterprise test-bed rosters" table above.
+
+## How to test one
+
+Point `CUGA_SUPERVISOR_ROSTER` at the file you want and bounce the servers. Nothing is copied
+and nothing needs restoring — `make reload` on its own puts the default back.
+
+```sh
+# from repo root
+CUGA_SUPERVISOR_ROSTER=events/examples/rosters/box_document_intelligence.yaml make reload
+# …exercise it (synth-fire a box/new_file, or chat)…
+make reload                                                # back to the default roster
+```
+
+Swap in a different file to test a different family. Because each is a smaller, themed roster, the
+supervisor's routing is easier to reason about and to score with `make test-delegation`.
+
+## Where this points (future, needs code)
+
+Today the runtime is a **single-level** supervisor over a flat list. The natural next step these
+files set up: a **two-level hierarchy** — a top `cuga` that routes to a *domain supervisor*
+(Box / Inbox / Repo / Comms / Research), which then picks the specialist. That's a code change
+(nested supervisors) and is intentionally NOT done here — these files are the content that would
+populate such a hierarchy, and are useful now as standalone test rosters.

@@ -1,0 +1,252 @@
+[
+  {
+    "question": "How many weeks of parental leave does Apex provide to primary and secondary caregivers?",
+    "role": "hr",
+    "ground_truth": "Apex provides 16 weeks of fully paid parental leave for the primary caregiver and 8 weeks for the secondary caregiver. Applies to birth, adoption, or foster placement."
+  },
+  {
+    "question": "What is the PTO accrual rate for full-time employees?",
+    "role": "hr",
+    "ground_truth": "Full-time employees accrue PTO at 1.67 days per calendar month, totaling 20 days per year. Accrual begins on the first day of employment."
+  },
+  {
+    "question": "When do formal performance reviews occur and what is the purpose of each cycle?",
+    "role": "hr",
+    "ground_truth": "Mid-year review in June is a lightweight check-in. Annual review in December is the primary evaluation, producing a formal rating feeding compensation and promotions."
+  },
+  {
+    "question": "What are the seven career levels and their base salary ranges at Apex?",
+    "role": "hr",
+    "ground_truth": "L1 Associate ($70k-$90k), L2 Specialist ($90k-$120k), L3 Senior ($120k-$160k), L4 Staff ($160k-$210k), L5 Principal ($210k-$280k), L6 Director ($250k-$350k), L7 Vice President ($350k+)."
+  },
+  {
+    "question": "What are the onboarding milestones expected at 30, 60, and 90 days?",
+    "role": "hr",
+    "ground_truth": "Day 30: product understanding, team introductions, one deliverable. Day 60: independent on core responsibilities. Day 90: contributing at expected level; formal 90-day check-in with HR Business Partner."
+  },
+  {
+    "question": "What is the deductible for the PPO health plan and the HDHP?",
+    "role": "hr",
+    "ground_truth": "PPO: $500 individual / $1,000 family in-network. HDHP: $1,500 individual / $3,000 family, aggregate family deductible."
+  },
+  {
+    "question": "How should employees report a code of conduct violation, and what happens after a report is filed?",
+    "role": "hr",
+    "ground_truth": "Report to manager, manager's manager, People Operations, or General Counsel. Anonymous hotline available. People Operations investigates within 30 days."
+  },
+  {
+    "question": "What is the leave policy and how is leave requested?",
+    "role": "hr",
+    "ground_truth": "Request leave through HR system with advance manager approval. Unused leave may carry over up to a capped limit; extended leave requires HR Business Partner approval."
+  },
+  {
+    "question": "What does the employee handbook cover?",
+    "role": "hr",
+    "ground_truth": "Workplace conduct, attendance, dress code, communication standards, safety policies, equal employment opportunity, and grievance procedures."
+  },
+  {
+    "question": "What is the compensation guide and how are salary bands determined?",
+    "role": "hr",
+    "ground_truth": "Salary bands per career level and location tier, based on role, level, experience, and geographic market data. Reviewed annually."
+  },
+  {
+    "question": "What are the health benefits available to employees?",
+    "role": "hr",
+    "ground_truth": "PPO and HDHP medical plans, dental, vision, life and disability insurance, FSA/HSA, and wellness program access."
+  },
+  {
+    "question": "What is the hiring process at Apex?",
+    "role": "hr",
+    "ground_truth": "Application screening, recruiter phone screen, hiring manager interview, team/panel interviews, reference checks, and final offer."
+  },
+  {
+    "question": "What is the code of conduct and what behaviors does it prohibit?",
+    "role": "hr",
+    "ground_truth": "Prohibits harassment, discrimination, retaliation, conflicts of interest, and misuse of company resources. Employees must act with integrity."
+  },
+  {
+    "question": "How does the 90-day check-in work and who is involved?",
+    "role": "hr",
+    "ground_truth": "HR Business Partner reviews performance against the 30-60-90 plan, discusses role clarity, and addresses support needs."
+  },
+  {
+    "question": "What happens to PTO when an employee leaves Apex?",
+    "role": "hr",
+    "ground_truth": "Accrued but unused PTO is paid out per applicable law and company policy, subject to state restrictions."
+  },
+  {
+    "question": "Are employees allowed to work remotely and what is the policy?",
+    "role": "hr",
+    "ground_truth": "Remote work depends on role and department, requires manager approval, core collaboration hours, and data-security requirements."
+  },
+  {
+    "question": "What are the stages of the deployment pipeline from merge to production?",
+    "role": "engineering",
+    "ground_truth": "Build, unit tests, static analysis, security scanning, integration tests, canary deployment, production promotion. Failures block deployment."
+  },
+  {
+    "question": "How are production incidents handled and what are the severity levels?",
+    "role": "engineering",
+    "ground_truth": "Incidents classified P0-P4. P0/P1 trigger on-call rotation and incident commander. Covers detection, triage, mitigation, post-mortem, action items."
+  },
+  {
+    "question": "What are the API design and versioning standards?",
+    "role": "engineering",
+    "ground_truth": "REST conventions with OpenAPI specs. Versioning via URL path (/v1/). Breaking changes require new major version and deprecation notice."
+  },
+  {
+    "question": "What percentage of traffic does the canary environment receive and how is it managed?",
+    "role": "engineering",
+    "ground_truth": "Canary receives 5% of production traffic via Argo Rollouts weighted VirtualService in Istio. Canary only during business hours unless rollback. 30-minute window."
+  },
+  {
+    "question": "How is the on-call rotation structured and what are the escalation rules?",
+    "role": "engineering",
+    "ground_truth": "24x7 rotation: primary, secondary, on-call engineering manager. Primary acknowledges PagerDuty within 5 minutes, else escalates to secondary, then manager."
+  },
+  {
+    "question": "What are the security guidelines for handling production data?",
+    "role": "engineering",
+    "ground_truth": "No production data in non-production without approval. Role-based least-privilege access. Secrets in vault, never in code. Access logged and audited quarterly."
+  },
+  {
+    "question": "What is the system architecture overview?",
+    "role": "engineering",
+    "ground_truth": "Microservices on Kubernetes with React frontend, FastAPI backend, PostgreSQL, Qdrant vector store, Redis caching. HTTPS/gRPC with service mesh observability."
+  },
+  {
+    "question": "What is the incident response process?",
+    "role": "engineering",
+    "ground_truth": "Detection, declaration, triage, mitigation, resolution, post-mortem. Incident commander leads P0/P1. Blameless post-mortems with tracked action items."
+  },
+  {
+    "question": "What are the API documentation standards?",
+    "role": "engineering",
+    "ground_truth": "OpenAPI 3.0 specs, request/response schemas, example payloads, error-code documentation. Reviewed during PR and published to developer portal."
+  },
+  {
+    "question": "What are the coding standards and code review requirements?",
+    "role": "engineering",
+    "ground_truth": "Code must pass linting, type-checking, unit tests. PRs need one approving review and successful CI. Security changes need security review."
+  },
+  {
+    "question": "How are secrets and credentials managed?",
+    "role": "engineering",
+    "ground_truth": "Secrets in managed vault, injected at runtime. Never committed to version control. Rotated on a schedule."
+  },
+  {
+    "question": "What are the performance and SLO targets?",
+    "role": "engineering",
+    "ground_truth": "99.9% API availability, p95 latency under 200ms reads / 500ms writes, error rate below 0.1%. Alerts on SLO burn rate thresholds."
+  },
+  {
+    "question": "What is the deadline for submitting expense reports and what are the per-meal reimbursement caps?",
+    "role": "finance",
+    "ground_truth": "Submit within 30 calendar days via Navan. 31-60 days needs written explanation; over 60 days needs VP of Finance approval. Caps: breakfast $25, lunch $40, dinner $75. $100/attendee for hosting with VP pre-approval above that."
+  },
+  {
+    "question": "When are the four quarterly budget reviews held and who attends them?",
+    "role": "finance",
+    "ground_truth": "Q1 April, Q2 July (CEO/CRO attend), Q3 October (CEO summary segment), Q4 January (senior leadership and board). Attended by CFO, VP Finance, FP&A, finance partners, department heads."
+  },
+  {
+    "question": "What are the spend approval thresholds by organizational level?",
+    "role": "finance",
+    "ground_truth": "IC: $500. Managers: $5,000. Directors: $25,000. VPs: $100,000. CFO: $500,000. CEO/board: >$500,000 or unbudgeted >$250,000. Approval before purchase; retroactive only in emergencies with CFO authorization."
+  },
+  {
+    "question": "What is the external audit process?",
+    "role": "finance",
+    "ground_truth": "Annual independent audit. Finance prepares trial balance, reconciliations, supporting schedules. Auditors test controls and transactions and issue an opinion."
+  },
+  {
+    "question": "What are the audit procedures for expense reimbursement?",
+    "role": "finance",
+    "ground_truth": "Verify 30-day submission, valid receipts, budget match, per-meal caps. Samples tested for policy compliance and approver authority."
+  },
+  {
+    "question": "What is the financial reporting calendar?",
+    "role": "finance",
+    "ground_truth": "Monthly closes within 10 business days. Quarterly reports after budget reviews. Annual statements after January close, audited before board approval."
+  },
+  {
+    "question": "What is the budget policy for new hires and headcount?",
+    "role": "finance",
+    "ground_truth": "New hire requisitions need approved budget line, CFO approval for headcount above plan, signed offer within salary band. Finance tracks headcount monthly."
+  },
+  {
+    "question": "What are the procurement guidelines and approved vendors?",
+    "role": "finance",
+    "ground_truth": "Purchases above $5,000 need competitive quote and approved vendor. Purchase orders required, with receiving and three-way match before payment."
+  },
+  {
+    "question": "What is the expense policy for client entertainment?",
+    "role": "finance",
+    "ground_truth": "Capped at $100 per attendee with VP pre-approval above that. Must have business purpose; receipts with attendee names required."
+  },
+  {
+    "question": "What is the parental leave policy for adoptive and foster parents?",
+    "role": "hr",
+    "ground_truth": "Parental leave benefits apply equally to birth, adoption, or foster placement, for both biological and adoptive parents."
+  },
+  {
+    "question": "What is the aggregate family deductible in the HDHP?",
+    "role": "hr",
+    "ground_truth": "The HDHP uses an aggregate family deductible where any combination of family members' expenses counts toward the single $3,000 threshold."
+  },
+  {
+    "question": "What is the role of the HR Business Partner in the 90-day check-in?",
+    "role": "hr",
+    "ground_truth": "The HR Business Partner conducts the formal 90-day check-in covering performance against the 30-60-90 plan."
+  },
+  {
+    "question": "What is the canary deployment window and rollback rule?",
+    "role": "engineering",
+    "ground_truth": "Canary deployments are permitted only during business hours (09:00-17:00 Pacific, Monday-Friday) unless the change is a rollback for an active incident."
+  },
+  {
+    "question": "What happens if SLO-based alerts fire during the canary window?",
+    "role": "engineering",
+    "ground_truth": "If SLO-based alerts fire during the canary window, promotion to full production is not automatic and requires investigation."
+  },
+  {
+    "question": "What is the on-call manager's responsibility for P0 incidents?",
+    "role": "engineering",
+    "ground_truth": "The on-call manager is automatically paged for all P0 incidents and must be manually paged by the incident commander for P1 incidents."
+  },
+  {
+    "question": "What is the stipend for on-call engineers?",
+    "role": "engineering",
+    "ground_truth": "On-call engineers receive a $200 per week stipend."
+  },
+  {
+    "question": "How is production data access logged?",
+    "role": "engineering",
+    "ground_truth": "All production data access is logged and audited quarterly."
+  },
+  {
+    "question": "What are the three-way match requirements in procurement?",
+    "role": "finance",
+    "ground_truth": "Procurement requires purchase orders with receiving and three-way match before payment."
+  },
+  {
+    "question": "What is required for purchases above $5,000?",
+    "role": "finance",
+    "ground_truth": "Purchases above $5,000 require a competitive quote and an approved vendor."
+  },
+  {
+    "question": "What is the VP of Finance approval limit?",
+    "role": "finance",
+    "ground_truth": "The VP of Finance may approve up to $100,000 per transaction."
+  },
+  {
+    "question": "When are annual financial statements completed?",
+    "role": "finance",
+    "ground_truth": "Annual financial statements are completed after the January close and audited before board approval."
+  },
+  {
+    "question": "What is required for entertainment expenses above $100 per attendee?",
+    "role": "finance",
+    "ground_truth": "VP pre-approval is required above $100 per attendee for client entertainment."
+  }
+]

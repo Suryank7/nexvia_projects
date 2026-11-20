@@ -1,0 +1,329 @@
+/* ─── Root layout ──────────────────────────────────────────────────────────── */
+
+.chat-landing {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  /* No background set here — inherits from body/theme */
+}
+
+.chat-agent-toolbar {
+  position: fixed;
+  inset-inline: 0;
+  display: flex;
+  align-items: center;
+  padding-inline: 1rem;
+  background: var(--cds-layer-01);
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  z-index: 202;
+}
+
+.chat-agent-switcher {
+  width: 22rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.chat-agent-switcher .cds--dropdown--inline {
+  inline-size: 100%;
+}
+
+.chat-agent-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.chat-agent-option > svg {
+  flex-shrink: 0;
+}
+
+.chat-agent-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-agent-option-supervisor-icon {
+  color: #6929c4;
+}
+
+/* ─── Chat area: always full viewport width below the header ─────────────────
+   The two side panels float on top of this via position:fixed in the TSX.
+   We intentionally do NOT add left/right padding here — panels are overlaid.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.chat-content-area {
+  position: relative;
+  flex: 1;
+  margin-top: var(--chat-header-height, 48px);
+  width: 100%;
+  height: calc(100dvh - var(--chat-header-height, 48px));
+  overflow: hidden;
+  background: transparent;
+}
+
+.memory-workspace-shell {
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--cds-background);
+}
+
+/* ─── Workspace file tree (Carbon TreeView label layout) ─────────────────── */
+
+.chat-landing-workspace-tree.cds--tree,
+.chat-landing-workspace-tree.bx--tree {
+  min-width: 0;
+  max-width: 100%;
+  overflow: auto;
+}
+
+.chat-landing-workspace-tree .cds--tree-node,
+.chat-landing-workspace-tree .bx--tree-node,
+.chat-landing-workspace-tree .cds--tree-node__children,
+.chat-landing-workspace-tree .bx--tree-node__children,
+.chat-landing-workspace-tree .cds--tree-leaf-node,
+.chat-landing-workspace-tree .bx--tree-leaf-node,
+.chat-landing-workspace-tree .cds--tree-node__label,
+.chat-landing-workspace-tree .bx--tree-node__label {
+  min-width: 0;
+}
+
+.chat-landing-workspace-tree .cds--tree-node__label__details,
+.chat-landing-workspace-tree .bx--tree-node__label__details {
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.chat-landing-workspace-tree .cds--tree-node__label__text,
+.chat-landing-workspace-tree .bx--tree-node__label__text {
+  display: grid;
+  align-items: center;
+  column-gap: 0.25rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-inline-size: 0;
+  flex: 1 1 0;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.chat-landing-workspace-tree .cds--tree-parent-node > .cds--tree-node__label,
+.chat-landing-workspace-tree .bx--tree-parent-node > .bx--tree-node__label {
+  max-inline-size: 100%;
+}
+
+.chat-landing-workspace-tree-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-landing-workspace-tree-filename {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-landing-workspace-tree-row {
+  display: contents;
+}
+
+.chat-landing-workspace-tree-download {
+  justify-self: end;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 70ms cubic-bezier(0, 0, 0.38, 0.9);
+}
+
+.chat-landing-workspace-tree .cds--tree-node__label:hover .chat-landing-workspace-tree-download,
+.chat-landing-workspace-tree .bx--tree-node__label:hover .chat-landing-workspace-tree-download,
+.chat-landing-workspace-tree .chat-landing-workspace-tree-download:focus-visible {
+  opacity: 1;
+}
+
+.chat-landing-workspace-panel--drag-over {
+  outline: 2px dashed var(--cds-interactive, #0f62fe);
+  outline-offset: -2px;
+}
+
+.chat-landing-workspace-drag-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--cds-interactive-rgb, 15, 98, 254), 0.08);
+  color: var(--cds-text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ─── Conversation thread rows (hover handled inline for dynamic isActive) ── */
+
+.conversation-history-panel button:focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: -2px;
+}
+
+/* ─── Agent panel navigation ─────────────────────────────────────────────── */
+
+.agent-section-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.agent-section-header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 1rem;
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+  background: var(--cds-layer-01);
+}
+
+.agent-section-header__icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--cds-interactive);
+  background: rgba(15, 98, 254, 0.08);
+}
+
+.agent-section-header__copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.agent-section-header__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.agent-section-header__title-row h3 {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--cds-text-primary);
+}
+
+.agent-section-header__copy p {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--cds-text-secondary);
+}
+
+/* ─── Scrollbar styling — subtle so it doesn't break the glass look ─────── */
+
+.conversation-history-panel ::-webkit-scrollbar,
+.agent-info-panel ::-webkit-scrollbar {
+  width: 4px;
+}
+
+.conversation-history-panel ::-webkit-scrollbar-track,
+.agent-info-panel ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.conversation-history-panel ::-webkit-scrollbar-thumb,
+.agent-info-panel ::-webkit-scrollbar-thumb {
+  background: var(--cds-border-subtle-01);
+  border-radius: 2px;
+}
+
+/* ─── Responsive: below 1100px the right panel auto-hides (handled in TSX),
+       below 768px the left panel auto-hides too.
+       These media queries just guard any CSS-only layout concerns.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1099px) {
+  /* Right panel is hidden via JS translateX; nothing extra needed */
+}
+
+@media (max-width: 767px) {
+  /* Both panels hidden via JS; nothing extra needed */
+  .chat-content-area {
+    height: calc(100dvh - 48px);
+  }
+}
+
+/* ─── Re-open toggle buttons ─────────────────────────────────────────────────
+   Defined inline in TSX but these add hover polish.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.chat-landing button[title="Open conversations"]:hover,
+.chat-landing button[title="Open agent panel"]:hover {
+  background: rgba(var(--cds-background-rgb, 255, 255, 255), 0.9) !important;
+  border-color: var(--cds-interactive) !important;
+}
+
+.cds--modal-content.chat-landing-file-modal-body,
+.cds--modal-scroll-content.chat-landing-file-modal-body {
+  padding: 1rem !important;
+}
+
+.chat-landing-file-modal-markdown {
+  font-size: 12px;
+  margin-bottom: 2rem;
+}
+
+.chat-landing-file-modal-markdown cds-aichat-markdown,
+.chat-landing-file-modal-markdown .cds-aichat-markdown {
+  font-size: inherit;
+}
+
+.chat-landing-file-modal-footer {
+  margin-top: 1rem;
+}
+
+/* Dock panels on wide screens so they never cover the transcript or composer. */
+.chat-content-area { min-width: 0;  background: var(--cds-layer-01); }
+@media (min-width: 1100px) {
+  .chat-landing--left-open .chat-content-area { margin-left: var(--chat-left-width); width: calc(100% - var(--chat-left-width)); }
+  .chat-landing--right-open .chat-content-area { margin-right: var(--chat-right-width); width: calc(100% - var(--chat-right-width)); }
+  .chat-landing--left-open.chat-landing--right-open .chat-content-area { width: calc(100% - var(--chat-left-width) - var(--chat-right-width)); }
+}
+.chat-panel-toggle { position: fixed; top: calc(var(--chat-header-height) + 3.5rem); z-index: 201; background: var(--cds-layer-01); }
+.chat-panel-toggle--left { left: 0.5rem; }
+.chat-panel-toggle--right { right: 0.5rem; }
+.chat-panel-scrim { position: fixed; inset: var(--chat-header-height) 0 0; border: 0; background: var(--cds-overlay); z-index: 199; }
+.chat-landing-workspace-tree-download { opacity: 1; }
+@media (max-width: 1099px) {
+  .chat-landing aside { max-width: calc(100vw - 3rem) !important; }
+  .chat-landing aside .cds--content-switcher { margin: 0.75rem; }
+}
+
+
+.chat-agent-toolbar { gap: 0.5rem; }
+.chat-agent-switcher { flex: 1; }
+.chat-agent-toolbar__name { flex: 1; min-inline-size: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 0.875rem; }
+.chat-agent-toolbar__actions { display: flex; margin-inline-start: auto; flex-shrink: 0; }
+.agent-section-tabs { margin: 1rem 1rem 0; flex-shrink: 0; }
+.agent-detail-panels { flex: 1; min-block-size: 0; display: flex; }
+.agent-detail-tab-panel { padding: 0; flex: 1; min-block-size: 0; }
+.agent-detail-tab-panel:not([hidden]) { display: flex; }
+
+.chat-panel-scroll { min-height: 0; position: relative; overscroll-behavior-y: contain; }

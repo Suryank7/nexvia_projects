@@ -1,0 +1,385 @@
+.carbon-chat-fullscreen {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+}
+
+.carbon-chat-contained {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.cuga-chat-surface {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cuga-memory-usage-link {
+  min-height: 2rem;
+  margin-top: 0.25rem;
+  padding-inline: 0;
+}
+
+/* ── Composer toolbar (paperclip + chips row) ── */
+
+.cuga-composer-toolbar {
+  padding: 0.35rem 0.75rem 0.25rem;
+}
+
+.cuga-composer-toolbar__row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.cuga-composer-toolbar__attach {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--cds-icon-secondary, #525252);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cuga-composer-toolbar__attach:hover {
+  background: rgba(15, 98, 254, 0.1);
+  color: var(--cds-link-primary, #0f62fe);
+}
+
+.cuga-composer-toolbar__divider {
+  width: 1px;
+  height: 1.1rem;
+  background: rgba(141, 141, 141, 0.25);
+  flex-shrink: 0;
+}
+
+.cuga-composer-toolbar__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.cuga-composer-toolbar__manage {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--cds-link-primary, #0f62fe);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0;
+  transition: background 0.15s ease;
+}
+
+.cuga-composer-toolbar__manage:hover {
+  background: rgba(15, 98, 254, 0.08);
+}
+
+/* ── Attachment chips ── */
+
+.cuga-composer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 0;
+  border: 1px solid rgba(141, 141, 141, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0.15rem 0.25rem 0.15rem 0.45rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cuga-composer-chip:hover {
+  border-color: rgba(141, 141, 141, 0.35);
+}
+
+.cuga-composer-chip--uploading {
+  border-color: rgba(15, 98, 254, 0.3);
+  background: rgba(15, 98, 254, 0.05);
+}
+
+.cuga-composer-chip--error {
+  border-color: rgba(218, 30, 40, 0.3);
+  background: rgba(218, 30, 40, 0.05);
+}
+
+.cuga-composer-chip--deleting {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.cuga-composer-chip__main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.cuga-composer-chip__main:disabled {
+  cursor: default;
+}
+
+.cuga-composer-chip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 12rem;
+  font-size: 0.73rem;
+  color: var(--cds-text-primary, #161616);
+}
+
+.cuga-composer-chip__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--cds-text-secondary, #525252);
+  cursor: pointer;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 0;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cuga-composer-chip__action:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--cds-text-primary, #161616);
+}
+
+.cuga-composer-chip__spinner {
+  animation: cuga-carbon-spin 1s linear infinite;
+}
+
+/* ── Chat wrapper & drag/drop ── */
+
+.cuga-carbon-chat-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.cuga-carbon-chat-wrapper.cuga-carbon-composer--dragover {
+  outline: 2px dashed rgba(15, 98, 254, 0.6);
+  outline-offset: -2px;
+  border-radius: 0;
+}
+
+.cuga-carbon-chat-wrapper.cuga-carbon-composer--dragover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 98, 254, 0.04);
+  border-radius: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cuga-carbon-message-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.55rem;
+}
+
+.cuga-carbon-message-attachment {
+  border: 1px solid rgba(15, 98, 254, 0.2);
+  background: rgba(15, 98, 254, 0.06);
+  color: var(--cds-link-primary, #0f62fe);
+  border-radius: 999px;
+  padding: 0.18rem 0.6rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.cuga-carbon-message-attachment:hover {
+  background: rgba(15, 98, 254, 0.12);
+}
+
+@keyframes cuga-carbon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Debug tools use a standard Carbon modal and code snippets. */
+.debug-toggle-button { display: none; }
+.debug-data { display: grid; gap: 1rem; }
+.debug-data .cds--snippet { width: 100%; max-width: 100%; }
+.debug-auto-refresh { margin-top: 1rem; color: var(--cds-text-secondary); font-size: 0.75rem; }
+
+.cuga-slash-dropdown {
+  background: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  border-radius: 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  max-height: 320px;
+  overflow-y: auto;
+  font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+}
+
+.cuga-slash-dropdown__status {
+  padding: 12px 14px;
+  color: var(--cds-text-secondary);
+}
+
+.cuga-slash-dropdown__status--error {
+  color: var(--cds-text-error);
+}
+
+.cuga-slash-dropdown__list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.cuga-slash-option {
+  padding: 8px 14px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+
+.cuga-slash-option--active,
+.cuga-slash-option:hover {
+  background: #f6f8fa;
+  border-left-color: var(--cds-link-primary);
+}
+
+.cuga-slash-option__main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cuga-slash-option__name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  color: var(--cds-text-primary);
+}
+
+.cuga-slash-option__hint {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--cds-text-secondary);
+  font-size: 12px;
+}
+
+.cuga-slash-option__kind {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cuga-slash-option__kind--skill {
+  background: #fff8c5;
+  color: #9a6700;
+}
+
+.cuga-slash-option__description {
+  margin-top: 2px;
+  color: var(--cds-text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ── Inline slash-command overlays (light DOM, fixed-position) ──
+   Geometry (left/top/width/height) is set inline per element from
+   Range.getClientRects() measurements; only the skin lives here.
+
+   Colors are derived from Carbon's warning-support token with a literal
+   fallback: the overlays render in the light DOM where the injected Carbon
+   theme variables may not be defined, and CUGA currently has no app-wide
+   dark mode (see the note above the deleted dark-mode rules in git
+   history). --cds-support-warning is the same amber in the G100 dark theme,
+   and the translucent color-mix tint stays legible on dark surfaces, so
+   these survive a future dark mode unchanged. */
+
+/* Translucent pill drawn OVER a known /command token in the composer. The
+   composer is Carbon's Lit-managed contenteditable — we must not wrap its
+   text in spans — so the pill is a pointer-transparent rectangle floated
+   above the glyphs instead. */
+.cuga-slash-inline-pill {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9998;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--cds-support-warning, #f1c21b) 24%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--cds-support-warning, #f1c21b) 38%, transparent);
+}
+
+/* Ghost-text continuation of the highlighted match after the caret's
+   /partial token (accepted with Tab). Font is copied inline from the
+   composer's computed style so the ghost aligns with the real glyphs. */
+.cuga-slash-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9998;
+  color: var(--cds-text-placeholder, #a8a8a8);
+  white-space: pre;
+  opacity: 0.9;
+}
+
+/* .cuga-slash-command-pill (known /command mentions inside rendered user
+   bubbles) is styled INLINE in CarbonChat.tsx: those spans live inside
+   Carbon's shadow root, which this light-DOM stylesheet cannot reach. The
+   inline styles use the same --cds-support-warning color-mix recipe as
+   .cuga-slash-inline-pill above — keep the two in sync. */
+
+/* CUGA does not currently have an app-wide dark mode. The slash-dropdown
+   dark-mode rules previously living here were dropped to avoid the visual
+   inconsistency of dark chips inside an otherwise light UI. Re-add them
+   (selectors: .cuga-slash-dropdown, .cuga-slash-dropdown__status,
+   .cuga-slash-option*) if/when a dark mode is introduced. */
+
+.cuga-composer-toolbar { padding: 0.5rem 1rem; }
+.cuga-composer-toolbar__attach { width: 2rem; height: 2rem; }
+.cuga-composer-toolbar__manage, .cuga-composer-chip__name, .cuga-carbon-message-attachment { font-size: 0.75rem; }
+.cuga-composer-chip__action { width: 2rem; height: 2rem; }
+.cuga-composer-chip { background: var(--cds-layer-02); border-color: var(--cds-border-subtle-01); }
+.cuga-slash-dropdown { font-family: "IBM Plex Sans", sans-serif; border-radius: 0; }
+.cuga-slash-option { min-height: 3rem; }
+.cuga-slash-option__name, .debug-section code, .debug-section pre { font-family: "IBM Plex Mono", monospace; }
+
+.cuga-chat-loading { position: absolute; inset: 0; z-index: 2; background: var(--cds-background); }
+
+.cuga-composer-chip__loading { inline-size: 1.5rem; min-inline-size: 1.5rem; margin-inline-start: 0.5rem; }
+
+/* Keep the native chat header and Restart available while history loads. */
+.cuga-chat-loading--history { inset-block-start: 3.5rem; }
+
+.cuga-carbon-chat-wrapper { overscroll-behavior-y: contain; }
